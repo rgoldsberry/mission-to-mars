@@ -46,7 +46,7 @@ img_url_rel
 
 img_url = f'{url}{img_url_rel}'
 
-print(img_url)
+# print(img_url)
 
 #  Getting Mars Facts Table
 df = pd.read_html('https://galaxyfacts-mars.com')[0]
@@ -56,7 +56,7 @@ df.set_index('description', inplace=True)
 #send it to html
 df.to_html()
 
-print(df)
+# print(df)
 
 # Ending Session
 browser.quit()
