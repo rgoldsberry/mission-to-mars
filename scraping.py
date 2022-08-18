@@ -3,60 +3,91 @@ from splinter import Browser
 from bs4 import BeautifulSoup as soup
 from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
+import datetime as dt
 
-# set up executable path and start a browser
-executable_path = {'executable_path': ChromeDriverManager().install()}
-browser = Browser('chrome', **executable_path, headless = False)
+def scrape_all():
+    # set up executable path and start a browser
+    executable_path = {'executable_path': ChromeDriverManager().install()}
+    browser = Browser('chrome', **executable_path, headless=True)
 
-# Mars News Site Scraping
-url = 'https://redplanetscience.com'
-browser.visit(url)
+    #call news function
+    news_title, news_paragraph = mars_news(browser)
+    
+    # fill in data
+    # calling other funtions within the data since they just return one value
+    data = {
+      "news_title": news_title,
+      "news_paragraph": news_paragraph,
+      "featured_image": featured_image(browser),
+      "facts": mars_facts(),
+      "last_modified": dt.datetime.now()
+        }
+    
+    # Ending Session
+    browser.quit()
 
-# Optional delay for loading the page
-browser.is_element_present_by_css('div.list_text', wait_time=1)
+    return data
 
-html = browser.html
+def mars_news(browser):
+    # Mars News Site Scraping
+    url = 'https://redplanetscience.com'
+    browser.visit(url)
 
-#convert browser to soup, extract elements
-news_soup = soup(html, 'html.parser')
-slide_elem = news_soup.select_one('div.list_text')
-news_title = slide_elem.find('div', class_='content_title').get_text()
-news_p = slide_elem.find('div', class_='article_teaser_body').get_text()
+    # Optional delay for loading the page
+    browser.is_element_present_by_css('div.list_text', wait_time=1)
 
-# print(news_title)
-# print(news_p)
+    html = browser.html
+    news_soup = soup(html, 'html.parser')
 
-# Jet Propulsion Lab Site Scraping
-# visit url
+    try:
+        #attempt to grab elements        
+        slide_elem = news_soup.select_one('div.list_text')
+        news_title = slide_elem.find('div', class_='content_title').get_text()
+        news_p = slide_elem.find('div', class_='article_teaser_body').get_text()
+    except AttributeError:
+        return None, None
 
-url = 'https://spaceimages-mars.com'
-browser.visit(url)
+    return news_title, news_p
 
-# Find and click the full image button
-full_image_elem = browser.find_by_tag('button')[1]
-full_image_elem.click()
 
-# Parse the resulting html with soup
-html = browser.html
-img_soup = soup(html, 'html.parser')
+def featured_image(browser):
+    # Jet Propulsion Lab Site Scraping
+    url = 'https://spaceimages-mars.com/'
+    browser.visit(url)
 
-# Find the relative image url
-img_url_rel = img_soup.find('img', class_='fancybox-image').get('src')
-img_url_rel
+    # Find and click the full image button
+    full_image_elem = browser.find_by_tag('button')[1]
+    full_image_elem.click()
 
-img_url = f'{url}{img_url_rel}'
+    # Parse the resulting html with soup
+    html = browser.html
+    img_soup = soup(html, 'html.parser')
 
-# print(img_url)
+    try:
+        # Find the relative image url
+        img_url_rel = img_soup.find('img', class_='fancybox-image').get('src')
+    except AttributeError:
+        return None
 
-#  Getting Mars Facts Table
-df = pd.read_html('https://galaxyfacts-mars.com')[0]
-df.columns=['description', 'Mars', 'Earth']
-df.set_index('description', inplace=True)
+    img_url = f'{url}{img_url_rel}'
+    return img_url
 
-#send it to html
-df.to_html()
 
-# print(df)
+def mars_facts():
+    
+    try:
+        #  Getting Mars Facts Table
+        df = pd.read_html('https://galaxyfacts-mars.com')[0]
+    except BaseException:
+        return None
 
-# Ending Session
-browser.quit()
+    # assign columns and set index of df
+    df.columns=['description', 'Mars', 'Earth']
+    df.set_index('description', inplace=True)
+    
+    #send it to html
+    return df.to_html(classes="table table-striped")
+
+if __name__ == "__main__":
+    # If running as script, print scraped data
+    print(scrape_all())
