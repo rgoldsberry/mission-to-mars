@@ -20,7 +20,8 @@ def scrape_all():
       "news_paragraph": news_paragraph,
       "featured_image": featured_image(browser),
       "facts": mars_facts(),
-      "last_modified": dt.datetime.now()
+      "last_modified": dt.datetime.now(),
+      "hemispheres": hemisphere_scrape(browser)
         }
     
     # Ending Session
@@ -87,6 +88,50 @@ def mars_facts():
     
     #send it to html
     return df.to_html(classes="table table-striped")
+
+
+def hemisphere_scrape(browser):
+    url = 'https://marshemispheres.com/'
+    browser.visit(url)
+
+    html = browser.html
+    hemi_soup = soup(html, 'html.parser')
+
+    hemisphere_details_urls = []
+
+    try: 
+        hemis_containers = hemi_soup.find_all('div', class_='description')
+        # build list of hemisphere links to visit
+        for hemi in hemis_containers:
+            rel_link = hemi.a.get('href')
+            hemi_url = f'{url}{rel_link}'
+            hemisphere_details_urls.append(hemi_url)
+
+        hemisphere_image_urls = []
+
+        for link in hemisphere_details_urls:
+            # visit site, get html
+            browser.visit(link)
+            html = browser.html
+            hemi_soup = soup(html, 'html.parser')
+
+            #extract title (discarding ' Enhanced') and image link
+            hemi_title = hemi_soup.find('h2').text.split(' E')[0]
+            hemi_img_link = f"{url}{hemi_soup.find('a', text='Sample').get('href')}"
+
+            #add hemisphere details to dictionary
+            hemi_dict = {
+                'img_url' : hemi_img_link,
+                'title' : hemi_title
+            }
+
+            hemisphere_image_urls.append(hemi_dict)
+    
+    except AttributeError:
+        return None
+    
+    return(hemisphere_image_urls)
+
 
 if __name__ == "__main__":
     # If running as script, print scraped data
